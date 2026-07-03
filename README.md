@@ -54,7 +54,7 @@ The app ships with a default Supabase backend, but users can configure their own
 
 Bitcoin (on-chain): bc1qtl8dvdtsmev96xqwt5w7lkufhsa0pr9snmtc
 
-Lightning (LNDHub): Import lndhub://invoice:1695888e9553455ca738e3e1a54e82e5@https://greenwood.havral.com/lndhub/ext/ into BlueWallet or compatible Lightning wallet.
+Lightning Address: iceout@greenwood.havral.com
 
 ## License
 
