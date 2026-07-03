@@ -221,8 +221,6 @@ textarea.form-input{min-height:80px;resize:vertical}
   gap:8px;transition:all 0.2s;text-decoration:none;
 }
 .support-btn:active{transform:scale(0.97)}
-.support-btn.kofi{border-color:#ff5e5b;color:#ff5e5b}
-.support-btn.kofi:hover{background:rgba(255,94,91,0.08)}
 .support-btn.btc{border-color:#f7931a;color:#f7931a}
 .support-btn.btc:hover{background:rgba(247,147,26,0.08)}
 .btc-addr{
@@ -240,7 +238,6 @@ textarea.form-input{min-height:80px;resize:vertical}
 @font-face { font-family:"IBM Plex Sans"; src:url("fonts/IBMPlexSans-Bold.ttf") format("truetype"); font-weight:700; }
 @font-face { font-family:"IBM Plex Mono"; src:url("fonts/IBMPlexMono-Regular.ttf") format("truetype"); font-weight:400; }
 @font-face { font-family:"IBM Plex Mono"; src:url("fonts/IBMPlexMono-Bold.ttf") format("truetype"); font-weight:700; }
-</style>
 </style>
 </head>
 <body>
@@ -425,28 +422,6 @@ function resetConfig() {
   window.location.reload();
 }
 
-function saveConfig() {
-  const url = document.getElementById('supabase-url')?.value.trim() || '';
-  const key = document.getElementById('supabase-key')?.value.trim() || '';
-  localStorage.setItem('iceout_sb_url', url);
-  localStorage.setItem('iceout_sb_key', key);
-  SUPABASE_URL = url;
-  SUPABASE_ANON = key;
-  toast('Configuration saved');
-  if(SUPABASE_URL && SUPABASE_ANON) initSupabase();
-}
-
-function resetConfig() {
-  localStorage.removeItem('iceout_sb_url');
-  localStorage.removeItem('iceout_sb_key');
-  document.getElementById('supabase-url').value = '';
-  document.getElementById('supabase-key').value = '';
-  SUPABASE_URL = '';
-  SUPABASE_ANON = '';
-  toast('Configuration reset - running in Mock Mode');
-  window.location.reload();
-}
-const USE_SUPABASE = SUPABASE_URL && SUPABASE_ANON;
 
 const OFM_STYLE = 'https://tiles.openfreemap.org/styles/dark';
 const OFM_ATTR = '<a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';

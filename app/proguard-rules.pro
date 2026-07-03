@@ -1,0 +1,2 @@
+-keepattributes JavascriptInterface
+-keepclassmembers class com.iceout.app.WebAppInterface { public *; }
