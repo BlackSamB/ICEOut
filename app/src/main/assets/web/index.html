@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>I.C.E Out</title>
+<link rel="stylesheet" href="lib/leaflet.css" />
+<script src="lib/leaflet.js"></script>
+<link href="lib/maplibre-gl.css" rel="stylesheet" />
+<script src="lib/maplibre-gl.js"></script>
+<script src="lib/leaflet-maplibre-gl.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#101014;--bg2:#1a1a20;--bg3:#24242c;--bg4:#2e2e38;
+  --txt:#e8e8ec;--txt2:#a0a0ae;--txtm:#68687a;
+  --amber:#f59e0b;--amber-d:#b47208;--red:#ef4444;--red-d:#991b1b;
+  --blue:#3b82f6;--blue-d:#1e40af;--green:#22c55e;--green-d:#166534;
+  --orange:#f97316;--purple:#a855f7;
+  --card:#1a1a22;--border:#2a2a34;
+  --r:14px;--rs:10px;--nav-h:60px;
+}
+html,body{
+  font-family:'IBM Plex Sans',system-ui,sans-serif;
+  background:var(--bg);color:var(--txt);height:100%;width:100%;
+  overflow:hidden;-webkit-font-smoothing:antialiased;overscroll-behavior:none;
+}
+#app{height:100%;width:100%;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.scr{display:none;flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav-h)+48px)}
+.scr.active{display:flex;flex-direction:column}
+
+/* ─── Nav ─── */
+.bnav{
+  position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);
+  background:var(--bg2);border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-around;z-index:1000;
+}
+.ni{
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:6px 12px;cursor:pointer;color:var(--txtm);transition:color 0.2s;
+  background:none;border:none;font-family:inherit;font-size:9px;font-weight:600;
+  letter-spacing:0.5px;text-transform:uppercase;
+}
+.ni.active{color:var(--amber)}
+.ni svg{width:22px;height:22px}
+
+/* ─── Map ─── */
+.map-full{flex:1;position:relative}
+#main-map{width:100%;height:100%}
+.map-legend{
+  position:absolute;top:12px;left:12px;z-index:800;
+  background:rgba(16,16,20,0.92);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;
+  font-size:11px;display:flex;flex-direction:column;gap:6px;
+}
+.leg-item{display:flex;align-items:center;gap:8px}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+.report-fab{
+  position:absolute;right:16px;bottom:calc(var(--nav-h) + 24px);right:16px;z-index:800;
+  width:56px;height:56px;border-radius:50%;border:none;
+  background:var(--amber);color:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;box-shadow:0 4px 20px rgba(245,158,11,0.4);
+  transition:transform 0.2s;font-size:28px;font-weight:700;
+}
+.report-fab:active{transform:scale(0.92)}
+
+/* ─── Feed ─── */
+.feed-hdr{padding:16px 20px 8px;position:sticky;top:0;z-index:10;background:var(--bg)}
+.feed-hdr h1{font-size:22px;font-weight:700;letter-spacing:-0.3px}
+.feed-hdr .sub{font-size:12px;color:var(--txtm);margin-top:2px}
+.feed-list{padding:0 16px;display:flex;flex-direction:column;gap:10px}
+
+.rpt-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:14px 16px;cursor:pointer;transition:border-color 0.2s;
+}
+.rpt-card:active{border-color:var(--amber)}
+.rpt-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.rpt-icon{
+  width:36px;height:36px;border-radius:var(--rs);
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;
+}
+.rpt-icon.raid{background:rgba(239,68,68,0.15);color:var(--red)}
+.rpt-icon.checkpoint{background:rgba(249,115,22,0.15);color:var(--orange)}
+.rpt-icon.surveillance{background:rgba(168,85,247,0.15);color:var(--purple)}
+.rpt-icon.patrol{background:rgba(245,158,11,0.15);color:var(--amber)}
+.rpt-icon.detention_transport{background:rgba(59,130,246,0.15);color:var(--blue)}
+.rpt-icon.other{background:rgba(104,104,122,0.15);color:var(--txtm)}
+
+.rpt-meta{flex:1;min-width:0}
+.rpt-type{font-size:14px;font-weight:600;text-transform:capitalize}
+.rpt-time{font-size:11px;color:var(--txtm);font-family:'IBM Plex Mono',monospace}
+.rpt-addr{font-size:13px;color:var(--txt2);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rpt-desc{font-size:13px;color:var(--txt2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+.rpt-badge{
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:0.5px;
+}
+.badge-unverified{background:rgba(245,158,11,0.15);color:var(--amber)}
+.badge-confirmed{background:rgba(239,68,68,0.15);color:var(--red)}
+.badge-resolved{background:rgba(34,197,94,0.15);color:var(--green)}
+
+/* ─── Report Form ─── */
+.form-hdr{padding:16px 20px 8px;position:sticky;top:0;z-index:10;background:var(--bg)}
+.form-hdr h1{font-size:22px;font-weight:700}
+.form-hdr .sub{font-size:12px;color:var(--txtm);margin-top:2px}
+.form-body{padding:0 20px 20px}
+.form-section{margin-right:16px;bottom:calc(var(--nav-h) + 24px)}
+.form-label{font-size:12px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.type-btn{
+  padding:12px;border-radius:var(--rs);border:1.5px solid var(--border);
+  background:var(--bg2);color:var(--txt2);cursor:pointer;
+  display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;
+  font-family:inherit;transition:all 0.2s;text-align:left;
+}
+.type-btn.sel{border-color:var(--amber);background:rgba(245,158,11,0.08);color:var(--amber)}
+.type-btn .ti{font-size:18px}
+
+.loc-toggle{display:flex;gap:8px;margin-bottom:12px}
+.loc-t-btn{
+  flex:1;padding:10px;border-radius:var(--rs);border:1.5px solid var(--border);
+  background:var(--bg2);color:var(--txt2);cursor:pointer;font-family:inherit;
+  font-size:13px;font-weight:600;text-align:center;transition:all 0.2s;
+}
+.loc-t-btn.sel{border-color:var(--amber);background:rgba(245,158,11,0.08);color:var(--amber)}
+
+.form-input{
+  width:100%;padding:12px 14px;border-radius:var(--rs);border:1.5px solid var(--border);
+  background:var(--bg2);color:var(--txt);font-family:inherit;font-size:14px;
+  transition:border-color 0.2s;outline:none;
+}
+.form-input:focus{border-color:var(--amber)}
+.form-input::placeholder{color:var(--txtm)}
+textarea.form-input{min-height:80px;resize:vertical}
+
+.pin-map-wrap{
+  height:220px;border-radius:var(--rs);overflow:hidden;border:1.5px solid var(--border);
+  margin-top:8px;position:relative;
+}
+#pin-map{width:100%;height:100%}
+.pin-hint{
+  position:absolute;bottom:8px;left:8px;right:8px;z-index:800;
+  background:rgba(16,16,20,0.9);border-radius:8px;padding:8px 12px;
+  font-size:12px;color:var(--amber);text-align:center;
+  pointer-events:none;
+}
+.pin-coords{
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--txt2);
+  margin-top:8px;padding:8px 12px;background:var(--bg2);border-radius:var(--rs);
+}
+
+.submit-btn{  position:fixed;bottom:calc(var(--nav-h) + 12px);left:0;right:0;  width:calc(100% - 32px);max-width:480px;margin:0 auto;  padding:16px;border-radius:var(--rs);border:none;z-index:50;  background:var(--amber);color:var(--bg);font-family:inherit;  font-size:16px;font-weight:700;cursor:pointer;transition:opacity 0.2s;  letter-spacing:0.3px;box-shadow:0 -4px 20px rgba(0,0,0,0.4);}
+.submit-btn:disabled{opacity:0.4;cursor:not-allowed}
+.submit-btn:not(:disabled):active{opacity:0.8}
+
+.anon-note{
+  font-size:11px;color:var(--txtm);text-align:center;margin-top:12px;
+  line-height:1.5;
+}
+
+/* ─── Resources ─── */
+.res-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:16px;margin:0 16px 12px;
+}
+.res-card h3{font-size:15px;font-weight:700;margin-bottom:8px}
+.res-card p{font-size:13px;color:var(--txt2);line-height:1.6}
+.res-card a{color:var(--amber);text-decoration:none}
+
+/* ─── Facility Card ─── */
+.fac-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:14px 16px;margin-bottom:10px;
+}
+.fac-name{font-size:14px;font-weight:600;margin-bottom:4px}
+.fac-type{
+  display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;
+  border-radius:20px;background:rgba(59,130,246,0.15);color:var(--blue);
+  text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px;
+}
+.fac-addr{font-size:12px;color:var(--txt2);margin-bottom:4px}
+.fac-phone{font-size:12px;color:var(--txtm);font-family:'IBM Plex Mono',monospace}
+
+/* ─── Toast ─── */
+.toast{
+  position:fixed;bottom:72px;left:50%;transform:translateX(-50%);
+  background:var(--amber);color:var(--bg);padding:12px 24px;border-radius:30px;
+  font-size:14px;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.4);
+  z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;
+}
+.toast.show{opacity:1}
+
+/* ─── Empty ─── */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 40px;text-align:center}
+.empty h3{font-size:16px;margin-bottom:8px;color:var(--txt2)}
+.empty p{font-size:13px;color:var(--txtm)}
+
+/* ─── Spinner ─── */
+.spin{display:inline-block;width:18px;height:18px;border:2.5px solid rgba(0,0,0,0.2);border-top-color:var(--bg);border-radius:50%;animation:sp 0.6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.attr-bar{padding:8px 16px;font-size:10px;color:var(--txtm);text-align:center}
+.attr-bar a{color:var(--amber);text-decoration:none}
+
+@media(min-width:600px){.feed-list,.form-body{max-width:540px;margin:0 auto}}
+
+/* ─── Support Buttons ─── */
+.support-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin:0 16px 12px}
+.support-card h3{font-size:15px;font-weight:700;margin-bottom:6px}
+.support-card p{font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:14px}
+.support-btns{display:flex;gap:10px}
+.support-btn{
+  flex:1;padding:12px;border-radius:var(--rs);border:1.5px solid var(--border);
+  background:var(--bg2);color:var(--txt);font-family:inherit;font-size:13px;
+  font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  gap:8px;transition:all 0.2s;text-decoration:none;
+}
+.support-btn:active{transform:scale(0.97)}
+.support-btn.kofi{border-color:#ff5e5b;color:#ff5e5b}
+.support-btn.kofi:hover{background:rgba(255,94,91,0.08)}
+.support-btn.btc{border-color:#f7931a;color:#f7931a}
+.support-btn.btc:hover{background:rgba(247,147,26,0.08)}
+.btc-addr{
+  margin-top:10px;padding:10px 12px;background:var(--bg);border-radius:var(--rs);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--txt2);
+  word-break:break-all;cursor:pointer;border:1px solid var(--border);
+  display:none;transition:all 0.2s;
+}
+.btc-addr.show{display:block}
+.btc-addr:active{border-color:var(--amber)}
+<style>
+@font-face { font-family:"IBM Plex Sans"; src:url("fonts/IBMPlexSans-Regular.ttf") format("truetype"); font-weight:400; }
+@font-face { font-family:"IBM Plex Sans"; src:url("fonts/IBMPlexSans-Medium.ttf") format("truetype"); font-weight:500; }
+@font-face { font-family:"IBM Plex Sans"; src:url("fonts/IBMPlexSans-SemiBold.ttf") format("truetype"); font-weight:600; }
+@font-face { font-family:"IBM Plex Sans"; src:url("fonts/IBMPlexSans-Bold.ttf") format("truetype"); font-weight:700; }
+@font-face { font-family:"IBM Plex Mono"; src:url("fonts/IBMPlexMono-Regular.ttf") format("truetype"); font-weight:400; }
+@font-face { font-family:"IBM Plex Mono"; src:url("fonts/IBMPlexMono-Bold.ttf") format("truetype"); font-weight:700; }
+</style>
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ═══ MAP ═══ -->
+  <div id="scr-map" class="scr active">
+    <div class="map-full">
+      <div id="main-map"></div>
+      <div class="map-legend">
+        <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Raid</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--orange)"></div>Checkpoint</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--purple)"></div>Surveillance</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div>Patrol</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--blue)"></div>ICE Facility</div>
+      </div>
+      <button class="report-fab" onclick="navTo('report')" title="Submit Report">+</button>
+    </div>
+  </div>
+
+  <!-- ═══ FEED ═══ -->
+  <div id="scr-feed" class="scr">
+    <div class="feed-hdr"><h1>Recent Reports</h1><div class="sub">Community-submitted sightings</div></div>
+    <div class="feed-list" id="feed-list"></div>
+  </div>
+
+  <!-- ═══ REPORT ═══ -->
+  <div id="scr-report" class="scr">
+    <div class="form-hdr"><h1>Submit Report</h1><div class="sub">All reports are anonymous. No account required.</div></div>
+    <div class="form-body">
+      <div class="form-section">
+        <div class="form-label">What did you see?</div>
+        <div class="type-grid">
+          <button class="type-btn" data-type="raid" onclick="selType(this)"><span class="ti">🚨</span>Raid</button>
+          <button class="type-btn" data-type="checkpoint" onclick="selType(this)"><span class="ti">🚧</span>Checkpoint</button>
+          <button class="type-btn" data-type="surveillance" onclick="selType(this)"><span class="ti">👁️</span>Surveillance</button>
+          <button class="type-btn" data-type="patrol" onclick="selType(this)"><span class="ti">🚔</span>Patrol</button>
+          <button class="type-btn" data-type="detention_transport" onclick="selType(this)"><span class="ti">🚐</span>Transport</button>
+          <button class="type-btn" data-type="other" onclick="selType(this)"><span class="ti">⚠️</span>Other</button>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">Location</div>
+        <div class="loc-toggle">
+          <button class="loc-t-btn sel" id="lt-addr" onclick="setLocMode('addr')">📝 Enter Address</button>
+          <button class="loc-t-btn" id="lt-pin" onclick="setLocMode('pin')">📍 Drop Pin</button>
+        </div>
+        <div id="loc-addr-wrap">
+          <input type="text" class="form-input" id="addr-input" placeholder="Street address, intersection, or landmark...">
+        </div>
+        <div id="loc-pin-wrap" style="display:none;">
+          <div class="pin-map-wrap">
+            <div id="pin-map"></div>
+            <div class="pin-hint">Tap the map to drop a pin</div>
+          </div>
+          <div class="pin-coords" id="pin-coords" style="display:none;">
+            📍 <span id="pin-lat">--</span>, <span id="pin-lng">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">Description (optional)</div>
+        <textarea class="form-input" id="desc-input" placeholder="What happened? When? How many agents? Vehicles? Any other details..."></textarea>
+      </div>
+
+      <button class="submit-btn" id="submit-btn" onclick="submitReport()" disabled>Submit Anonymous Report</button>
+      <div class="anon-note">
+        🔒 No personal data is collected. No account, no IP logging, no tracking.<br>
+        Reports are visible to all users to help keep communities safe.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ RESOURCES ═══ -->
+  <div id="scr-info" class="scr">
+    <div class="feed-hdr"><h1>Resources</h1><div class="sub">Know your rights & stay informed</div></div>
+    <div style="padding-top:4px">
+      <div class="res-card">
+        <h3>🛡️ Know Your Rights</h3>
+        <p>You have constitutional rights regardless of immigration status. You have the right to remain silent. You do not have to open your door for ICE without a <strong>judicial warrant</strong> (signed by a judge, not just an ICE administrative warrant). You have the right to an attorney.</p>
+      </div>
+      <div class="res-card">
+        <h3>📱 If You See ICE Activity</h3>
+        <p>Stay calm. Do not obstruct agents — it is illegal to physically interfere with an active operation. You <strong>can</strong> observe and record from a safe distance. Submit a report here after the activity has occurred to alert your community.</p>
+      </div>
+      <div class="res-card">
+        <h3>📞 Emergency Contacts</h3>
+        <p>
+          <strong>National Immigration Law Center:</strong> <a href="tel:2136391134">(213) 639-3900</a><br>
+          <strong>ACLU Immigrants' Rights:</strong> <a href="https://www.aclu.org/issues/immigrants-rights">aclu.org</a><br>
+          <strong>United We Dream Hotline:</strong> <a href="tel:18443632789">1-844-363-2789</a><br>
+          <strong>RAICES:</strong> <a href="tel:2102264544">(210) 226-4544</a>
+        </p>
+      </div>
+      <div class="res-card">
+        <h3>📋 About This App</h3>
+        <p>I.C.E Out is a community safety tool for reporting ICE activity <strong>after it has occurred</strong>. It is not affiliated with any government agency. All reports are anonymous and crowd-sourced. This app does not encourage or facilitate interference with law enforcement operations.</p>
+      </div>
+      <div class="res-card" id="conf-section">
+      <h3>⚙️ Backend Configuration</h3>
+      <p style="font-size:12px;color:var(--txt2);margin-bottom:8px">Supabase connection (leave empty for mock mode)</p>
+      <input class="form-input" id="supabase-url" placeholder="https://your-project.supabase.co" style="margin-bottom:8px"/>
+      <input class="form-input" id="supabase-key" placeholder="Supabase anon key" style="margin-bottom:10px"/>
+      <div style="display:flex;gap:10px">
+        <button onclick="saveConfig()">💾 Save Config</button>
+        <button class="ha-btn" onclick="resetConfig()">↺ Reset</button>
+      </div>
+    </div>
+
+<div class="support-card">
+        <h3>💛 Support This Project</h3>
+        <p>I.C.E Out is free, open-source, and ad-free. No data is sold, no tracking exists. If this tool helps your community, consider donating via Bitcoin to support continued development.</p>
+        <div class="support-btns">
+          <!-- Donate via Bitcoin -->
+          <button class="support-btn btc" onclick="toggleBtc()">⚡ Bitcoin</button>
+        </div>
+        <div class="btc-addr" id="btc-addr" onclick="copyBtc()">
+          <div style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:6px;">⚡ Lightning Address</div>
+          <div id="ln-addr">YOUR_LIGHTNING_ADDRESS@yourdomain.com</div>
+          <div style="margin-top:8px;font-size:12px;font-weight:600;color:var(--amber);">🔗 On-chain Bitcoin</div>
+          <div id="btc-onchain">bc1qtlt8dvdtsme6v96xqwt5w7lkuhfsa0pr9snmtc</div>
+          <div style="margin-top:8px;font-size:10px;color:var(--txtm);text-align:center;">Tap to copy</div>
+        </div>
+      </div>
+      <div class="res-card" id="fac-section">
+        <h3>🏢 Known ICE Facilities</h3>
+        <div id="fac-list"></div>
+      </div>
+    </div>
+    <div class="attr-bar">
+      Maps by <a href="https://openfreemap.org">OpenFreeMap</a> ·
+      © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> ·
+      Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>
+    </div>
+  </div>
+
+  <!-- ═══ NAV ═══ -->
+  <nav class="bnav">
+    <button class="ni active" data-scr="map">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Map
+    </button>
+    <button class="ni" data-scr="feed">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Feed
+    </button>
+    <button class="ni" data-scr="report">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Report
+    </button>
+    <button class="ni" data-scr="info">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Info
+    </button>
+  </nav>
+  <div class="toast" id="toast-el"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG — Set these after creating your Supabase project
+// ═══════════════════════════════════════════
+let SUPABASE_URL = localStorage.getItem('iceout_sb_url') || 'https://fubhhlcmdvvdpagttfkt.supabase.co'; // Hardcoded for F-Droid compatibility
+let SUPABASE_ANON = localStorage.getItem('iceout_sb_key') || 'sb_publishable_9WIfmP1Iof7LI53ocKUd1g_WXdn0EgE';
+
+function saveConfig() {
+  const url = document.getElementById('supabase-url')?.value.trim() || '';
+  const key = document.getElementById('supabase-key')?.value.trim() || '';
+  localStorage.setItem('iceout_sb_url', url);
+  localStorage.setItem('iceout_sb_key', key);
+  SUPABASE_URL = url;
+  SUPABASE_ANON = key;
+  toast('Configuration saved');
+  if(SUPABASE_URL && SUPABASE_ANON) initSupabase();
+}
+
+function resetConfig() {
+  localStorage.removeItem('iceout_sb_url');
+  localStorage.removeItem('iceout_sb_key');
+  document.getElementById('supabase-url').value = '';
+  document.getElementById('supabase-key').value = '';
+  SUPABASE_URL = '';
+  SUPABASE_ANON = '';
+  toast('Configuration reset - running in Mock Mode');
+  window.location.reload();
+}
+
+function saveConfig() {
+  const url = document.getElementById('supabase-url')?.value.trim() || '';
+  const key = document.getElementById('supabase-key')?.value.trim() || '';
+  localStorage.setItem('iceout_sb_url', url);
+  localStorage.setItem('iceout_sb_key', key);
+  SUPABASE_URL = url;
+  SUPABASE_ANON = key;
+  toast('Configuration saved');
+  if(SUPABASE_URL && SUPABASE_ANON) initSupabase();
+}
+
+function resetConfig() {
+  localStorage.removeItem('iceout_sb_url');
+  localStorage.removeItem('iceout_sb_key');
+  document.getElementById('supabase-url').value = '';
+  document.getElementById('supabase-key').value = '';
+  SUPABASE_URL = '';
+  SUPABASE_ANON = '';
+  toast('Configuration reset - running in Mock Mode');
+  window.location.reload();
+}
+const USE_SUPABASE = SUPABASE_URL && SUPABASE_ANON;
+
+const OFM_STYLE = 'https://tiles.openfreemap.org/styles/dark';
+const OFM_ATTR = '<a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+// ═══════════════════════════════════════════
+// MOCK DATA (used when Supabase not configured)
+// ═══════════════════════════════════════════
+const MOCK_FACILITIES = [
+  {id:'f1',name:'ICE Denver Field Office',fac_type:'field_office',address:'12445 E Caley Ave, Centennial, CO 80111',lat:39.5977,lng:-104.8535,phone:'(303) 695-7921',hours:'Mon-Fri 7-4'},
+  {id:'f2',name:'ICE Denver Contract Detention (GEO)',fac_type:'detention_center',address:'3130 N Oakland St, Aurora, CO 80010',lat:39.7392,lng:-104.8384,phone:'(303) 361-0645',hours:'24/7'},
+  {id:'f3',name:'ICE Colorado Springs Sub-Office',fac_type:'sub_office',address:'1 S Cascade Ave, Colorado Springs, CO 80903',lat:38.8339,lng:-104.8253,phone:'(719) 471-6186',hours:'Mon-Fri 8-4:30'},
+];
+
+const MOCK_REPORTS = [
+  {id:'r1',lat:40.0150,lng:-105.2705,address:'28th St & Iris Ave, Boulder',report_type:'patrol',description:'Two unmarked black SUVs with federal plates circling the neighborhood. Spotted agents in tactical vests.', severity:'confirmed',created_at:new Date(Date.now()-3600000).toISOString()},
+  {id:'r2',lat:39.7509,lng:-104.9960,address:'Federal Blvd & W Alameda Ave, Denver',report_type:'checkpoint',description:'Checkpoint near the intersection. Agents checking IDs of pedestrians.',severity:'unverified',created_at:new Date(Date.now()-7200000).toISOString()},
+  {id:'r3',lat:40.1672,lng:-105.1019,address:'Main St, Longmont',report_type:'raid',description:'ICE agents entered a residence on Main St around 6 AM. Multiple vehicles. At least 4 agents.',severity:'confirmed',created_at:new Date(Date.now()-18000000).toISOString()},
+  {id:'r4',lat:39.8561,lng:-104.6737,address:'E 56th Ave & Chambers Rd, Commerce City',report_type:'surveillance',description:'Unmarked vehicle parked outside a business for several hours. Occupants appeared to be monitoring the area.',severity:'unverified',created_at:new Date(Date.now()-28800000).toISOString()},
+  {id:'r5',lat:39.7294,lng:-104.8319,address:'Near GEO detention facility, Aurora',report_type:'detention_transport',description:'Large transport van leaving the facility heading eastbound on I-70.',severity:'confirmed',created_at:new Date(Date.now()-43200000).toISOString()},
+];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let mainMap=null, pinMap=null, pinMarker=null;
+let reports=[...MOCK_REPORTS], facilities=[...MOCK_FACILITIES];
+let selectedType='', locMode='addr', pinLat=null, pinLng=null;
+
+const TYPE_ICONS={raid:'🚨',checkpoint:'🚧',surveillance:'👁️',patrol:'🚔',detention_transport:'🚐',other:'⚠️'};
+const TYPE_COLORS={raid:'#ef4444',checkpoint:'#f97316',surveillance:'#a855f7',patrol:'#f59e0b',detention_transport:'#3b82f6',other:'#68687a'};
+const TYPE_NAMES={raid:'Raid',checkpoint:'Checkpoint',surveillance:'Surveillance',patrol:'Patrol',detention_transport:'Transport',other:'Other'};
+
+// ═══════════════════════════════════════════
+// SUPABASE HELPERS
+// ═══════════════════════════════════════════
+async function sbFetch(table,method='GET',body=null,query=''){
+  const url=`${SUPABASE_URL}/rest/v1/${table}${query}`;
+  const opts={method,headers:{'apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`,'Content-Type':'application/json','Prefer':'return=representation'}};
+  if(body)opts.body=JSON.stringify(body);
+  const res=await fetch(url,opts);
+  return res.json();
+}
+
+async function loadData(){
+  if(!USE_SUPABASE)return;
+  try{
+    const r=await sbFetch('reports','GET',null,'?order=created_at.desc&limit=50');
+    if(Array.isArray(r))reports=r;
+    const f=await sbFetch('facilities','GET',null,'?order=name.asc');
+    if(Array.isArray(f))facilities=f;
+  }catch(e){console.warn('Supabase fetch failed, using mock data',e);}
+}
+
+async function insertReport(data){
+  if(!USE_SUPABASE){
+    // Mock insert
+    const r={id:'r'+Date.now(),...data,severity:'unverified',created_at:new Date().toISOString()};
+    reports.unshift(r);return r;
+  }
+  const res=await sbFetch('reports','POST',data);
+  if(Array.isArray(res)&&res.length)return res[0];
+  throw new Error('Insert failed');
+}
+
+// ═══════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════
+function navTo(scr){
+  document.querySelectorAll('.ni').forEach(b=>{b.classList.toggle('active',b.dataset.scr===scr)});
+  document.querySelectorAll('.scr').forEach(s=>{s.classList.toggle('active',s.id==='scr-'+scr)});
+  if(scr==='map')initMainMap();
+  if(scr==='feed')renderFeed();
+  if(scr==='report')initPinMap();
+  if(scr==='info')renderFacilities();
+}
+document.querySelectorAll('.ni').forEach(b=>b.addEventListener('click',()=>navTo(b.dataset.scr)));
+
+// ═══════════════════════════════════════════
+// MAIN MAP
+// ═══════════════════════════════════════════
+function initMainMap(){
+  if(mainMap){mainMap.invalidateSize();refreshMapMarkers();return;}
+  setTimeout(()=>{
+    mainMap=L.map('main-map',{zoomControl:false,attributionControl:false}).setView([39.75,-105.0],9);
+    L.maplibreGL({style:OFM_STYLE,attribution:OFM_ATTR}).addTo(mainMap);
+    refreshMapMarkers();
+    mainMap.locate({setView:false,enableHighAccuracy:true});
+    mainMap.on('locationfound',e=>{
+      L.circleMarker(e.latlng,{radius:7,fillColor:'#3b82f6',fillOpacity:1,color:'#fff',weight:2}).addTo(mainMap).bindPopup('You are here');
+    });
+  },100);
+}
+
+function refreshMapMarkers(){
+  if(!mainMap)return;
+  // Clear existing (except tile layer and user location)
+  mainMap.eachLayer(l=>{if(l instanceof L.CircleMarker||l instanceof L.Marker)mainMap.removeLayer(l);});
+
+  // Reports
+  reports.forEach(r=>{
+    const col=TYPE_COLORS[r.report_type]||'#68687a';
+    const age=timeAgo(r.created_at);
+    L.circleMarker([r.lat,r.lng],{radius:9,fillColor:col,fillOpacity:0.85,color:'#fff',weight:2,className:'rpt-marker'})
+      .addTo(mainMap)
+      .bindPopup(`<div style="font-family:'IBM Plex Sans',sans-serif;min-width:180px;"><strong>${TYPE_ICONS[r.report_type]||'⚠️'} ${TYPE_NAMES[r.report_type]||'Report'}</strong><br><span style="font-size:11px;color:#666;">${age}</span><br><span style="font-size:12px;">${r.address||'No address'}</span>${r.description?'<br><span style="font-size:12px;color:#555;">'+r.description.slice(0,100)+'</span>':''}</div>`);
+  });
+
+  // Facilities
+  facilities.forEach(f=>{
+    const icon=L.divIcon({
+      html:`<div style="width:24px;height:24px;background:var(--blue);border:2px solid #fff;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.4);">🏢</div>`,
+      iconSize:[24,24],iconAnchor:[12,12],className:''
+    });
+    L.marker([f.lat,f.lng],{icon}).addTo(mainMap)
+      .bindPopup(`<div style="font-family:'IBM Plex Sans',sans-serif;min-width:180px;"><strong>🏢 ${f.name}</strong><br><span style="font-size:12px;">${f.address}</span>${f.phone?'<br><span style="font-size:12px;">📞 '+f.phone+'</span>':''}${f.hours?'<br><span style="font-size:11px;color:#666;">🕐 '+f.hours+'</span>':''}</div>`);
+  });
+}
+
+// ═══════════════════════════════════════════
+// FEED
+// ═══════════════════════════════════════════
+function renderFeed(){
+  const list=document.getElementById('feed-list');
+  if(!reports.length){list.innerHTML='<div class="empty"><h3>No reports yet</h3><p>Be the first to submit a community report.</p></div>';return;}
+  list.innerHTML=reports.map(r=>`
+    <div class="rpt-card" onclick="focusReport('${r.id}')">
+      <div class="rpt-top">
+        <div class="rpt-icon ${r.report_type}">${TYPE_ICONS[r.report_type]||'⚠️'}</div>
+        <div class="rpt-meta">
+          <div class="rpt-type">${TYPE_NAMES[r.report_type]||'Report'}</div>
+          <div class="rpt-time">${timeAgo(r.created_at)}</div>
+        </div>
+        <span class="rpt-badge badge-${r.severity}">${r.severity}</span>
+      </div>
+      <div class="rpt-addr">${r.address||'Location pin only'}</div>
+      ${r.description?`<div class="rpt-desc">${r.description}</div>`:''}
+    </div>
+  `).join('');
+}
+
+function focusReport(id){
+  const r=reports.find(x=>x.id===id);
+  if(!r)return;
+  navTo('map');
+  setTimeout(()=>{if(mainMap)mainMap.setView([r.lat,r.lng],15);},200);
+}
+
+// ═══════════════════════════════════════════
+// REPORT FORM
+// ═══════════════════════════════════════════
+function selType(btn){
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  selectedType=btn.dataset.type;
+  checkSubmit();
+}
+
+function setLocMode(mode){
+  locMode=mode;
+  document.getElementById('lt-addr').classList.toggle('sel',mode==='addr');
+  document.getElementById('lt-pin').classList.toggle('sel',mode==='pin');
+  document.getElementById('loc-addr-wrap').style.display=mode==='addr'?'block':'none';
+  document.getElementById('loc-pin-wrap').style.display=mode==='pin'?'block':'none';
+  if(mode==='pin')initPinMap();
+  checkSubmit();
+}
+
+function initPinMap(){
+  if(pinMap){pinMap.invalidateSize();return;}
+  setTimeout(()=>{
+    const c=document.getElementById('pin-map');if(!c||!c.offsetHeight)return;
+    pinMap=L.map(c,{zoomControl:false,attributionControl:false}).setView([40.02,-105.27],12);
+    L.maplibreGL({style:OFM_STYLE}).addTo(pinMap);
+    pinMap.on('click',e=>{
+      pinLat=Math.round(e.latlng.lat*10000)/10000;
+      pinLng=Math.round(e.latlng.lng*10000)/10000;
+      if(pinMarker)pinMap.removeLayer(pinMarker);
+      pinMarker=L.marker(e.latlng,{
+        icon:L.divIcon({html:'<div style="width:28px;height:28px;background:var(--amber);border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,0.5);">📍</div>',iconSize:[28,28],iconAnchor:[14,28],className:''})
+      }).addTo(pinMap);
+      document.getElementById('pin-coords').style.display='block';
+      document.getElementById('pin-lat').textContent=pinLat;
+      document.getElementById('pin-lng').textContent=pinLng;
+      checkSubmit();
+    });
+    // Try to center on user location
+    pinMap.locate({setView:true,maxZoom:13,enableHighAccuracy:true});
+  },200);
+}
+
+function checkSubmit(){
+  const hasType=!!selectedType;
+  const hasLoc=locMode==='addr'?document.getElementById('addr-input').value.trim().length>3:(pinLat!==null);
+  document.getElementById('submit-btn').disabled=!(hasType&&hasLoc);
+}
+
+document.getElementById('addr-input').addEventListener('input',checkSubmit);
+
+async function submitReport(){
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Submitting...';
+
+  // Geocode address to coords if manual entry
+  let lat,lng,addr;
+  if(locMode==='addr'){
+    addr=document.getElementById('addr-input').value.trim();
+    // Use Nominatim for geocoding (free, no key)
+    try{
+      const res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`,{headers:{'User-Agent':'ICEOut/1.0'}});
+      const data=await res.json();
+      if(data.length){lat=parseFloat(data[0].lat);lng=parseFloat(data[0].lon);}
+      else{toast('Could not find that address. Try a more specific location or use pin drop.');btn.disabled=false;btn.textContent='Submit Anonymous Report';return;}
+    }catch(e){lat=40.02;lng=-105.27;} // fallback to Longmont area
+  }else{
+    lat=pinLat;lng=pinLng;addr=`${pinLat}, ${pinLng}`;
+  }
+
+  const desc=document.getElementById('desc-input').value.trim();
+
+  try{
+    await insertReport({lat,lng,address:addr,report_type:selectedType,description:desc||null});
+    toast('Report submitted. Thank you.');
+    // Reset form
+    selectedType='';pinLat=null;pinLng=null;
+    document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('sel'));
+    document.getElementById('addr-input').value='';
+    document.getElementById('desc-input').value='';
+    document.getElementById('pin-coords').style.display='none';
+    if(pinMarker&&pinMap){pinMap.removeLayer(pinMarker);pinMarker=null;}
+    btn.textContent='Submit Anonymous Report';btn.disabled=true;
+    // Refresh map
+    refreshMapMarkers();
+  }catch(e){
+    toast('Error submitting report. Please try again.');
+    btn.disabled=false;btn.textContent='Submit Anonymous Report';
+  }
+}
+
+// ═══════════════════════════════════════════
+// FACILITIES LIST
+// ═══════════════════════════════════════════
+function renderFacilities(){
+  const list=document.getElementById('fac-list');
+  list.innerHTML=facilities.map(f=>`
+    <div class="fac-card">
+      <span class="fac-type">${f.fac_type.replace(/_/g,' ')}</span>
+      <div class="fac-name">${f.name}</div>
+      <div class="fac-addr">${f.address}</div>
+      ${f.phone?`<div class="fac-phone">📞 ${f.phone}</div>`:''}
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+function timeAgo(iso){
+  const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);
+  if(s<60)return 'Just now';
+  if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+
+function toast(msg){
+  if(typeof Android!=='undefined'&&Android.showToast){Android.showToast(msg);return;}
+  const t=document.getElementById('toast-el');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function toggleBtc(){document.getElementById('btc-addr').classList.toggle('show');}
+function copyBtc(){
+  const ln=document.getElementById('ln-addr').textContent;
+  navigator.clipboard.writeText(ln).then(()=>toast('Lightning address copied!')).catch(()=>{
+    const oc=document.getElementById('btc-onchain').textContent;
+    navigator.clipboard.writeText(oc).then(()=>toast('Bitcoin address copied!')).catch(()=>toast('Long-press to copy'));
+  });
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+(async()=>{
+  await loadData();
+  initMainMap();
+  renderFeed();
+  renderFacilities();
+})();
+</script>
+</body>
+</html>

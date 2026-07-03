@@ -1,0 +1,19 @@
+I.C.E Out is an ad-free, open-source community safety tool for reporting
+Immigration and Customs Enforcement (ICE) activity after it occurs. Built with
+privacy-first principles — no accounts, no tracking, no data sold.
+
+Features:
+- Anonymous report submission (no personal data collected)
+- Community-sourced activity map with color-coded markers
+- Report types: raid, checkpoint, surveillance, patrol, transport, other
+- Know Your Rights resources & emergency contacts
+- ICE facility directory
+- OpenFreeMap vector tiles + Leaflet/MapLibre
+- Fully offline-capable (mock mode when backend unavailable)
+- Self-hostable Supabase backend — users can configure their own
+- Reports expire after 72 hours
+- Zero proprietary dependencies
+- No analytics, no crash reporting, no third-party SDKs
+
+All reports are view-only observations logged after incidents occur.
+This app does not encourage physical interference with law enforcement operations.
