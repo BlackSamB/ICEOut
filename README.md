@@ -43,7 +43,7 @@ APK output: app/build/outputs/apk/debug/app-debug.apk
 
 ## Self-Hosting the Backend
 
-The app ships with a default Supabase backend, but users can configure their own:
+The app ships in mock mode by default, but users can configure their own:
 
 1. Self-host Supabase via Docker: https://supabase.com/docs/guides/self-hosting
 2. Run the schema in supabase/schema.sql

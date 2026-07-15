@@ -26,8 +26,8 @@ public class MainActivity extends AppCompatActivity {
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
-        s.setGeolocationEnabled(true);
-        s.setAllowFileAccess(true);
+        s.setGeolocationEnabled(false);
+        s.setAllowFileAccess(false);
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setBuiltInZoomControls(false);
@@ -43,7 +43,16 @@ public class MainActivity extends AppCompatActivity {
                 cb.invoke(origin, true, false);
             }
         });
-        webView.setWebViewClient(new WebViewClient());
+webView.setWebViewClient(new WebViewClient() {
+    @Override
+    public boolean shouldOverrideUrlLoading(WebView v, String url) {
+        if (url.startsWith("file://")) return false;
+        android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url));
+        i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(i);
+        return true;
+    }
+});
         if (!hasLoc()) requestLoc();
         webView.loadUrl("file:///android_asset/web/index.html");
     }

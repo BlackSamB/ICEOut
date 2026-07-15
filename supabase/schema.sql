@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS reports (
   report_type TEXT NOT NULL CHECK (report_type IN (
     'raid', 'checkpoint', 'surveillance', 'patrol', 'detention_transport', 'other'
   )),
-  description TEXT,
+  description VARCHAR(500),
   severity    TEXT DEFAULT 'unverified' CHECK (severity IN (
     'unverified', 'confirmed', 'resolved'
   )),
@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE INDEX idx_reports_location ON reports (lat, lng);
 CREATE INDEX idx_reports_created  ON reports (created_at DESC);
 CREATE INDEX idx_reports_type     ON reports (report_type);
+ALTER TABLE reports ADD CONSTRAINT valid_coords
+  CHECK (lat BETWEEN -90 AND 90 AND lng BETWEEN -180 AND 180);
 
 -- 2. Facilities table (static data, read-only public access)
 CREATE TABLE IF NOT EXISTS facilities (
@@ -56,7 +58,7 @@ CREATE POLICY "Anyone can submit reports"
 -- Reports: anyone can SELECT (public visibility)
 CREATE POLICY "Anyone can view reports"
   ON reports FOR SELECT
-  USING (true);
+  USING (expires_at > now());
 
 -- Reports: nobody can UPDATE or DELETE via API
 -- (only admin via dashboard/service role)
