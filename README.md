@@ -10,7 +10,7 @@ Ad-free, open-source community safety tool for reporting ICE activity after it o
 - Know Your Rights resources & emergency contacts
 - ICE facility directory
 - OpenFreeMap vector tiles + Leaflet/MapLibre
-- Fully offline-capable (mock mode when backend unavailable)
+- Offline-capable (falls back to mock mode when backend is unreachable)
 - Self-hostable Supabase backend — users can configure their own
 
 ## Privacy
@@ -43,7 +43,7 @@ APK output: app/build/outputs/apk/debug/app-debug.apk
 
 ## Self-Hosting the Backend
 
-The app ships in mock mode by default, but users can configure their own:
+The app connects to a community Supabase backend by default. Users can configure their own backend:
 
 1. Self-host Supabase via Docker: https://supabase.com/docs/guides/self-hosting
 2. Run the schema in supabase/schema.sql
